@@ -1,0 +1,595 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import zipfile
+
+# مسیر فایل زیپ
+zip_path = '/content/drive/MyDrive/Copy of Train.zip'
+extract_path = '/content/train_audio_files/'
+
+# استخراج فایل زیپ
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall(extract_path)
+
+
+
+
+
+
+import zipfile
+import os
+
+# مسیر فایل زیپ
+zip_path = '/content/drive/MyDrive/Copy of Train (1).zip'
+extract_path = '/content/train_audio_files/'
+
+# استخراج فایل زیپ
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall(extract_path)
+
+# بررسی محتویات دایرکتوری استخراج‌شده
+extracted_files = os.listdir(extract_path)
+print(f"Extracted files and directories: {extracted_files}")
+
+
+import os
+import librosa
+import numpy as np
+import pandas as pd
+
+# مسیر فایل‌های صوتی
+extract_path = '/content/Train_extracted'
+
+# لیستی برای ذخیره ویژگی‌ها
+features_list = []
+
+# پردازش هر فایل صوتی
+for root, dirs, files in os.walk(extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # اطلاعات فایل از نام فایل استخراج شود
+            file_id = filename[:-7]  # حذف 7 کاراکتر آخر از نام فایل (مثلا .wav)
+            gender = filename[-7]
+            emotion = filename[-6]
+
+            # ذخیره ویژگی‌ها در لیست
+            features_list.append([file_id, gender, emotion, *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+columns = ['file_id', 'gender', 'emotion'] + [f'mfcc_{i+1}' for i in range(13)]
+df_features = pd.DataFrame(features_list, columns=columns)
+
+# نمایش DataFrame
+print(df_features.head())
+
+# ذخیره DataFrame به فایل CSV
+df_features.to_csv('audio_features.csv', index=False)
+
+import zipfile
+import pandas as pd
+
+# مسیر فایل ZIP در گوگل درایو
+test_zip_path = '/content/drive/MyDrive/Test.zip'
+test_extract_path = '/content/Test_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(test_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(test_extract_path)
+
+
+
+# بارگذاری فایل CSV حاوی لیبل‌های احساسات
+labels_path = '/content/result.csv'
+labels_df = pd.read_csv(labels_path)
+print(labels_df.head())
+
+# ترکیب ویژگی‌های تست با لیبل‌ها
+test_df = pd.merge(test_df_features, labels_df, on='id', how='inner')
+
+# بررسی اینکه DataFrame پس از ادغام خالی نباشد
+print(test_df.head())
+print(test_df.shape)
+
+import os
+import librosa
+import numpy as np
+
+# لیستی برای ذخیره ویژگی‌ها
+test_features_list = []
+
+# پردازش هر فایل صوتی تست
+for root, dirs, files in os.walk(test_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # اطلاعات فایل از نام فایل استخراج شود
+            file_id = filename[:-4]  # حذف .wav از نام فایل
+
+            # ذخیره ویژگی‌ها در لیست
+            test_features_list.append([file_id, *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+columns = ['file_id'] + [f'mfcc_{i+1}' for i in range(13)]
+test_df_features = pd.DataFrame(test_features_list, columns=columns)
+
+# نمایش DataFrame ویژگی‌ها
+print(test_df_features.head())
+
+
+
+import os
+import zipfile
+import librosa
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+
+# مسیر فایل ZIP در گوگل درایو
+train_zip_path = '/content/drive/MyDrive/Copy of Train.zip'
+train_extract_path = '/content/Train_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(train_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(train_extract_path)
+
+# لیستی برای ذخیره ویژگی‌ها
+train_features_list = []
+
+# پردازش هر فایل صوتی آموزشی
+for root, dirs, files in os.walk(train_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # اطلاعات فایل از نام فایل استخراج شود
+            file_id = filename[:4]  # استخراج ID
+            gender_emotion = filename[4:6]  # استخراج جنسیت و احساس
+
+            gender = gender_emotion[0]
+            emotion = gender_emotion[1]
+
+            emotion_map = {'A': 'Anger', 'H': 'Happiness', 'S': 'Sadness', 'N': 'Neutral', 'W': 'Wonder'}
+            emotion = emotion_map.get(emotion, 'Unknown')
+
+            # ذخیره ویژگی‌ها در لیست
+            train_features_list.append([file_id, emotion, *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+columns = ['id', 'emotion'] + [f'mfcc_{i+1}' for i in range(13)]
+train_df_features = pd.DataFrame(train_features_list, columns=columns)
+
+# نمایش DataFrame ویژگی‌ها
+print(train_df_features.head())
+
+# تبدیل لیبل‌های احساسات به اعداد
+emotion_labels = train_df_features['emotion'].astype('category').cat.codes
+train_df_features['emotion'] = emotion_labels
+
+# آماده‌سازی داده‌ها برای مدل LSTM
+X_train = train_df_features.drop(['id', 'emotion'], axis=1).values
+y_train = to_categorical(train_df_features['emotion'])
+
+# تغییر شکل داده‌ها برای مدل LSTM
+X_train = np.expand_dims(X_train, axis=-1)
+
+# ایجاد مدل LSTM
+model = Sequential()
+model.add(LSTM(64, input_shape=(13, 1), return_sequences=True))
+model.add(LSTM(64))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(len(np.unique(emotion_labels)), activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# آموزش مدل
+history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+
+# نمایش نمودار دقت و خطا
+plt.plot(history.history['accuracy'], label='train accuracy')
+plt.plot(history.history['val_accuracy'], label='validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='train loss')
+plt.plot(history.history['val_loss'], label='validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+# مسیر فایل ZIP در گوگل درایو برای داده‌های تست
+test_zip_path = '/content/drive/MyDrive/Test.zip'
+test_extract_path = '/content/Test_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(test_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(test_extract_path)
+
+# لیستی برای ذخیره ویژگی‌های تست
+test_features_list = []
+
+# پردازش هر فایل صوتی تست
+for root, dirs, files in os.walk(test_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # ذخیره ویژگی‌ها در لیست
+            test_features_list.append([filename[:4], *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+test_columns = ['id'] + [f'mfcc_{i+1}' for i in range(13)]
+test_df_features = pd.DataFrame(test_features_list, columns=test_columns)
+
+# بارگذاری فایل CSV حاوی لیبل‌های احساسات
+labels_path = '/content/result.csv'
+labels_df = pd.read_csv(labels_path)
+
+# تغییر نام ستون‌ها برای مطابقت با DataFrame تست
+labels_df.rename(columns={'Id': 'id', 'label': 'emotion'}, inplace=True)
+
+# ترکیب ویژگی‌های تست با لیبل‌ها
+test_df = pd.merge(test_df_features, labels_df, on='id')
+
+# تبدیل لیبل‌های احساسات به اعداد
+test_df['emotion'] = test_df['emotion'].astype('category').cat.codes
+
+# آماده‌سازی داده‌ها برای ارزیابی مدل LSTM
+X_test = test_df.drop(['id', 'emotion'], axis=1).values
+y_test = to_categorical(test_df['emotion'])
+
+# تغییر شکل داده‌ها برای مدل LSTM
+X_test = np.expand_dims(X_test, axis=-1)
+
+# ارزیابی مدل
+test_loss, test_accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
+
+
+
+# مسیر فایل ZIP در گوگل درایو برای داده‌های تست
+test_zip_path = '/content/drive/MyDrive/Test.zip'
+test_extract_path = '/content/Test_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(test_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(test_extract_path)
+
+# لیستی برای ذخیره ویژگی‌های تست
+test_features_list = []
+
+# پردازش هر فایل صوتی تست
+for root, dirs, files in os.walk(test_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # ذخیره ویژگی‌ها در لیست
+            test_features_list.append([filename[:4], *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+test_columns = ['Id'] + [f'mfcc_{i+1}' for i in range(13)]
+test_df_features = pd.DataFrame(test_features_list, columns=test_columns)
+
+
+
+test_df_features
+
+labels_df
+
+
+
+# تبدیل لیست به DataFrame
+test_columns = ['id'] + [f'mfcc_{i+1}' for i in range(13)]
+test_df_features = pd.DataFrame(test_features_list, columns=test_columns)
+
+# بارگذاری فایل CSV حاوی لیبل‌های احساسات
+labels_path = '/content/result.csv'
+labels_df = pd.read_csv(labels_path)
+
+# تغییر نام ستون‌ها برای مطابقت با DataFrame تست
+labels_df.rename(columns={'Id': 'id', 'label': 'emotion'}, inplace=True)
+
+# ترکیب ویژگی‌های تست با لیبل‌ها
+test_df = pd.merge(test_df_features, labels_df, on='id')
+
+# تغییر نام ستون‌ها برای مطابقت با DataFrame تست
+labels_df.rename(columns={'Id': 'id', 'label': 'emotion'}, inplace=True)
+
+# حذف کاراکترهای اضافی از 'id' در labels_df
+labels_df['id'] = labels_df['id'].str[:4]
+
+# بررسی اینکه آیا ستون‌ها به درستی اصلاح شده‌اند
+print(test_df_features.head())
+print(labels_df.head())
+
+# ترکیب ویژگی‌های تست با لیبل‌ها
+test_df = pd.merge(test_df_features, labels_df, on='id', how='inner')
+
+# بررسی اینکه DataFrame پس از ادغام خالی نباشد
+print(test_df.head())
+print(test_df.shape)
+
+# تبدیل لیبل‌های احساسات به اعداد
+test_df['emotion'] = test_df['emotion'].astype('category').cat.codes
+
+
+# آماده‌سازی داده‌ها برای ارزیابی مدل LSTM
+X_test = test_df.drop(['id', 'emotion'], axis=1).values
+y_test = to_categorical(test_df['emotion'])
+
+
+# بررسی شکل داده‌های آماده شده برای اطمینان از عدم وجود مشکل
+print(X_test.shape)
+print(y_test.shape)
+
+
+# تغییر شکل داده‌ها برای مدل LSTM
+X_test = np.expand_dims(X_test, axis=-1)
+
+# ارزیابی مدل
+test_loss, test_accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+# پیش‌بینی احساسات با استفاده از مدل
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+y_true = np.argmax(y_test, axis=1)
+
+# محاسبه ماتریس درهم‌ریختگی
+conf_matrix = confusion_matrix(y_true, y_pred_classes)
+
+# نمایش ماتریس درهم‌ریختگی
+disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=np.unique(test_df['emotion']))
+disp.plot(cmap=plt.cm.Blues)
+plt.show()
+
+import os
+import zipfile
+import librosa
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+# مسیر فایل ZIP در گوگل درایو
+train_zip_path = '/content/drive/MyDrive/Copy of Train.zip'
+train_extract_path = '/content/Train_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(train_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(train_extract_path)
+
+# لیستی برای ذخیره ویژگی‌ها
+train_features_list = []
+
+# پردازش هر فایل صوتی آموزشی
+for root, dirs, files in os.walk(train_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # اطلاعات فایل از نام فایل استخراج شود
+            file_id = filename[:4]  # استخراج ID
+            gender_emotion = filename[4:6]  # استخراج جنسیت و احساس
+
+            gender = gender_emotion[0]
+            emotion = gender_emotion[1]
+
+            emotion_map = {'A': 0, 'H': 1, 'S': 2, 'N': 3, 'W': 4}
+            gender_map = {'M': 0, 'F': 1}
+
+            emotion = emotion_map.get(emotion, -1)
+            gender = gender_map.get(gender, -1)
+
+            # ذخیره ویژگی‌ها در لیست
+            train_features_list.append([file_id, gender, emotion, *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+columns = ['id', 'gender', 'emotion'] + [f'mfcc_{i+1}' for i in range(13)]
+train_df_features = pd.DataFrame(train_features_list, columns=columns)
+
+# نمایش DataFrame ویژگی‌ها
+print(train_df_features.head())
+
+# آماده‌سازی داده‌ها برای مدل LSTM
+X_train = train_df_features.drop(['id', 'emotion'], axis=1).values
+y_train = to_categorical(train_df_features['emotion'])
+
+# تغییر شکل داده‌ها برای مدل LSTM
+X_train = np.expand_dims(X_train, axis=-1)
+
+# ایجاد مدل LSTM
+model = Sequential()
+model.add(LSTM(64, input_shape=(14, 1), return_sequences=True))
+model.add(LSTM(64))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(len(np.unique(train_df_features['emotion'])), activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# آموزش مدل
+history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+
+# نمایش نمودار دقت و خطا
+plt.plot(history.history['accuracy'], label='train accuracy')
+plt.plot(history.history['val_accuracy'], label='validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='train loss')
+plt.plot(history.history['val_loss'], label='validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+# مسیر فایل ZIP در گوگل درایو برای داده‌های تست
+test_zip_path = '/content/drive/MyDrive/Test.zip'
+test_extract_path = '/content/Test_extracted'
+
+# استخراج فایل‌های ZIP
+with zipfile.ZipFile(test_zip_path, 'r') as zip_ref:
+    zip_ref.extractall(test_extract_path)
+
+# لیستی برای ذخیره ویژگی‌های تست
+test_features_list = []
+
+# پردازش هر فایل صوتی تست
+for root, dirs, files in os.walk(test_extract_path):
+    for filename in files:
+        if filename.endswith('.wav'):
+            # مسیر فایل صوتی
+            file_path = os.path.join(root, filename)
+
+            # بارگذاری فایل صوتی
+            y, sr = librosa.load(file_path, sr=None)
+
+            # استخراج ویژگی‌های MFCC
+            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
+
+            # اطلاعات فایل از نام فایل استخراج شود
+            file_id = filename[:4]  # استخراج ID
+            gender_emotion = filename[4:6]  # استخراج جنسیت و احساس
+
+            gender = gender_emotion[0]
+            gender_map = {'M': 0, 'F': 1}
+            gender = gender_map.get(gender, -1)
+
+            # ذخیره ویژگی‌ها در لیست
+            test_features_list.append([file_id, gender, *mfccs_mean])
+
+# تبدیل لیست به DataFrame
+test_columns = ['id', 'gender'] + [f'mfcc_{i+1}' for i in range(13)]
+test_df_features = pd.DataFrame(test_features_list, columns=test_columns)
+
+# بارگذاری فایل CSV حاوی لیبل‌های احساسات
+labels_path = '/content/result.csv'
+labels_df = pd.read_csv(labels_path)
+
+# بررسی اینکه آیا ستون‌ها به درستی بارگذاری شده‌اند
+print(labels_df.head())
+
+# تغییر نام ستون‌ها برای مطابقت با DataFrame تست
+labels_df.rename(columns={'Id': 'id', 'label': 'emotion'}, inplace=True)
+
+# حذف کاراکترهای اضافی از 'id' در labels_df
+labels_df['id'] = labels_df['id'].str[:4]
+
+# بررسی اینکه آیا ستون‌ها به درستی اصلاح شده‌اند
+print(test_df_features.head())
+print(labels_df.head())
+
+# ترکیب ویژگی‌های تست با لیبل‌ها
+test_df = pd.merge(test_df_features, labels_df, on='id', how='inner')
+
+# بررسی اینکه DataFrame پس از ادغام خالی نباشد
+print(test_df.head())
+print(test_df.shape)
+
+# تبدیل لیبل‌های احساسات به اعداد
+test_df['emotion'] = test_df['emotion'].astype('category').cat.codes
+
+# آماده‌سازی داده‌ها برای ارزیابی مدل LSTM
+X_test = test_df.drop(['id', 'emotion'], axis=1).values
+y_test = to_categorical(test_df['emotion'])
+
+# بررسی شکل داده‌های آماده شده برای اطمینان از عدم وجود مشکل
+print(X_test.shape)
+print(y_test.shape)
+
+# تغییر شکل داده‌ها برای مدل LSTM
+X_test = np.expand_dims(X_test, axis=-1)
+
+# ارزیابی مدل
+test_loss, test_accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {test_loss}, Test Accuracy: {test_accuracy}')
+
+# پیش‌بینی احساسات با استفاده از مدل
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+y_true = np.argmax(y_test, axis=1)
+
+# محاسبه ماتریس درهم‌ریختگی
+conf_matrix = confusion_matrix(y_true, y_pred_classes)
+
+# نمایش ماتریس درهم‌ریختگی
+disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=np.unique(test_df['emotion']))
+disp
+
+
+# محاسبه ماتریس درهم‌ریختگی
+conf_matrix = confusion_matrix(y_true, y_pred_classes)
+
+# نمایش ماتریس درهم‌ریختگی
+disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=np.unique(test_df['emotion']))
+disp.plot(cmap=plt.cm.Blues)
+plt.show()
+
