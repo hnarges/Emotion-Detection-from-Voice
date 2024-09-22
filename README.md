@@ -1,4 +1,5 @@
-** Emotion-Detection from Voice**
+**Emotion-Detection from Voice**
+
 This aims to build a model which can detect emotions from the voice of people by using a data set containing recorded voices.
 
 This text explains the steps involved in working with audio data and emotion recognition from audio files. Initially, Librosa is used for audio processing and extracting features such as MFCC. Emotion labels are extracted from the file names, representing emotions like "Anger," "Happiness," "Sadness," "Neutral," and "Wonder."
